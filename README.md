@@ -1,0 +1,1 @@
+# wazuh-decoder-and-rules
