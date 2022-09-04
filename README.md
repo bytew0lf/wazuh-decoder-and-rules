@@ -1,2 +1,2 @@
-# wazuh-decoder-and-rules
+# Custom decoder and rules
 Decoder and rulesets for Wazuh (https://wazuh.com/)
