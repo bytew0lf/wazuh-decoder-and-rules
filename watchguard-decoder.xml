@@ -1,0 +1,284 @@
+<!--
+  Author: bytew0lf
+  Date: 2022-08-17
+-->
+
+<!-- 
+  Decoder for:
+    Watchguard Firebox
+   
+  Sample logs:
+    Aug 17 15:59:46 FB-M290 YYYYYYXXXXXXX (2022-08-17T13:59:46) firewall: msg_id="3000-0149" Allow InINF OutINF - NAME 557 tcp 20 128 192.168.5.50 52.112.5.176 56806 443 offset 5 A 2301787834 win 5152 app_name="Microsoft Teams" cat_name="VoIP services" app_beh_name="Access" app_id="37" app_cat_id="7" app_ctl_disp="2" sig_vers="18.224" action="Global"  geo_dst="SWE" msg="Application identified"  (PolicyName-00)
+    Aug 17 15:59:46 FB-M290 YYYYYYXXXXXXX (2022-08-17T13:59:46) pxy[2790]: wgssl_parse_client_hello: unrecognized version in supported versions extension: 0xa0a
+    Aug 17 15:59:46 FB-M290 YYYYYYXXXXXXX (2022-08-17T13:59:46) https-proxy[2790]: msg_id="2CFF-0001" Allow InINF OutINF - NAME tcp 192.168.5.50 52.112.5.176 56806 443 msg="ProxyAllow: HTTPS Request categories" proxy_act="HTTPS-Client.Standard.1" action="WebBlockerAction.1" cats="Collaboration - Office" dstname="presence.teams.microsoft.com"  geo_dst="SWE"  (PolicyName-00)
+    Aug 17 15:59:46 FB-M290 YYYYYYXXXXXXX (2022-08-17T13:59:46) https-proxy[2789]: msg_id="2CFF-0001" Allow InINF OutINF - NAME tcp 192.168.5.65 152.199.5.161 54197 443 msg="ProxyAllow: HTTPS Request categories" proxy_act="HTTPS-Client.Standard.1" action="WebBlockerAction.1" cats="Information Technology" dstname="az700632.vo.msecnd.net"  geo_dst="USA"  (PolicyName-00)
+    Aug 17 15:48:38 M370-name YYYYYYXXXXXXX FireboxM370 (2022-08-17T13:48:38) firewall: msg_id="3000-0148" Deny InINF OutINF 52 tcp 20 126 192.168.4.41 192.168.6.13 51105 445 offset 8 S 73180557 win 32 src_user="user@domain.local"  (PolicyName-00)
+    Aug 17 15:48:38 M370-name YYYYYYXXXXXXX FireboxM370 (2022-08-17T13:48:38) firewall: msg_id="3000-0149" Allow InINF OutINF 40 tcp 20 127 192.168.4.5 192.168.6.161 39890 10050 offset 5 AF 639034209 win 5152 app_name="unknown" cat_name="unknown" app_beh_name="unknown" app_id="65535" app_cat_id="255" app_ctl_disp="2" sig_vers="18.224" action="Global" msg="Application identified"  (PolicyName-00)
+    Aug 17 15:48:38 M370-name YYYYYYXXXXXXX FireboxM370 (2022-08-17T13:48:38) firewall: ICMP Error Handling, icmp type is host-unreachable(Global ICMP Setting)
+    Aug 17 15:48:38 M370-name YYYYYYXXXXXXX FireboxM370 (2022-08-17T13:48:38) firewall: msg_id="3000-0151" Allow InINF OutINF tcp 192.168.6.5 192.168.6.4 58605 4117 duration="65" sent_bytes="2201" rcvd_bytes="8541"  (PolicyName-00)
+    Aug 17 15:48:38 FB-name YYYYYYXXXXXXX (2022-08-17T13:48:38) firewall: msg_id="3000-0148" Deny InINF OutINF 29 udp 20 128 192.168.9.100 255.255.255.255 22350 22350  (PolicyName-00)
+    Aug 17 15:48:38 FB-name YYYYYYXXXXXXX (2022-08-17T13:48:38) firewall: msg_id="3000-0148" Allow InINF OutINF 52 tcp 20 127 192.168.9.126 192.168.4.40 54520 88 offset 8 S 958157487 win 64240  (PolicyName-00)
+    Aug 17 15:48:38 FB-name YYYYYYXXXXXXX (2022-08-17T13:48:38) firewall: msg_id="3000-0148" Allow InINF OutINF 52 tcp 20 127 192.168.9.126 192.168.4.40 54521 88 offset 8 S 1979367281 win 64240  (PolicyName-00)
+    Aug 17 15:48:38 FB-name YYYYYYXXXXXXX (2022-08-17T13:48:38) firewall: msg_id="3000-0148" Allow InINF OutINF 52 tcp 20 127 192.168.9.126 192.168.4.40 54523 88 offset 8 S 139289504 win 64240  (PolicyName-00)	
+-->
+
+<!-- 
+  Watchguard Firewall via syslog 
+-->
+<decoder name="watchguard-firewall">
+  <type>syslog</type>
+  <!--<prematch type="pcre2">\S+\sFireboxM370\s\(\d+-\d+-\d+T\d+:\d+:\d+\)\s</prematch>-->
+  <prematch type="pcre2">\(\d+-\d+-\d+T\d+:\d+:\d+\)\s\S+\smsg_id="\S+"\s</prematch>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex>\((\d+-\d+-\d+)T(\d+:\d+:\d+)\)</regex>
+  <order>date,time</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2">msg_id="(\S+)"</regex>
+  <order>msg_id</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2">msg_id="\S+" (Allow|Deny) (\S+) (\S+)</regex>
+  <order>disposition,incoming_if,outgoing_if</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex offset="after_parent">msg="(\.*)"\s</regex>
+  <order>msg_content</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">against (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b) from (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b)</regex>
+  <order>dstip,srcip</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">from (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b) to (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b).</regex>
+  <order>srcip,dstip</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">user (\S+) from (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b)</regex>
+  <order>user,srcip</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">IP is (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b)</regex>
+  <order>dstip</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">sender=\"(\S+@\S+)\"</regex>
+  <order>sender</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">from=\"(\S+@\S+)\"</regex>
+  <order>sender</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">recipients=\"(\S+@\S+)\"</regex>
+  <order>recipients</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">to=\"(\S+@\S+)\"</regex>
+  <order>recipients</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">subj_tag=\"(\S+)\"</regex>
+  <order>subject</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">file_name="(\S+)"</regex>
+  <order>file_name</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex offset="after_parent">geo_src="(\S+)"</regex>
+  <order>geo_src</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex offset="after_parent">geo_dst="(\S+)"</regex>
+  <order>geo_dst</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex offset="after_parent">response="(\S+)"</regex>
+  <order>response</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex offset="after_parent">keyword="(.*?)"</regex>
+  <order>keyword</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">(tcp|udp) (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b) (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b) (\d+) (\d+)</regex>
+  <order>protocol,srcip,dstip,srcport,dstport</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">from (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b):(\d+) to (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b):(\d+)</regex>
+  <order>srcip,srcport,dstip,dstport</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">(tcp|udp) \d+ \d+ (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b) (\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b) (\d+) (\d+)</regex>
+  <order>protocol,srcip,dstip,srcport,dstport</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">proxy_act="(.*?)"</regex>
+  <order>proxy_act</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">tls_profile="(.*?)"</regex>
+  <order>tls_profile</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">tls_version="(.*?)"</regex>
+  <order>tls_version</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">sni="(.*?)"</regex>
+  <order>sni</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">cn="(.*?)"</regex>
+  <order>cn</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">cert_issuer="(.*?)"</regex>
+  <order>cert_issuer</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">cert_subject="(.*?)"</regex>
+  <order>cert_subject</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">action="(Allow|allow|Deny|deny)"</regex>
+  <order>action</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">app_id="(\d+)"</regex>
+  <order>app_id</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">app_cat_id="(\d+)"</regex>
+  <order>app_cat_id</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">app_name="(.*?)"</regex>
+  <order>app_name</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">app_cat_name="(.*?)"</regex>
+  <order>app_cat_name</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">sig_vers="(.*?)"</regex>
+  <order>sig_vers</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">sent_bytes="(\d+)"</regex>
+  <order>sent_bytes</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">rcvd_bytes="(\d+)"</regex>
+  <order>rcvd_bytes</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">src_user="(.*?)"</regex>
+  <order>src_user</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">cats="(.*?)"</regex>
+  <order>cats</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">dstname="(.*?)"</regex>
+  <order>dstname</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">"\s+\((\S+)-00\)$</regex>
+  <order>policy</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">Temporarily blocking host (.*) \(reason = (.*)\)</regex>
+  <order>srcip,reason</order>
+</decoder>
+
+<decoder name="watchguard-firewall-fields">
+  <parent>watchguard-firewall</parent>
+  <regex type="pcre2" offset="after_parent">\((\S+)\x3C\x2D\x3E(\S+)\).*Gateway-Endpoint='(.*)' Reason=(.*)</regex>
+  <order>srcip,dstip,gateway_endpoint,reason</order>
+</decoder>
